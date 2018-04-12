@@ -18,6 +18,7 @@
 #include "storagelite.h"
 #include "HeapBlockDevice.h"
 #include "FlashSimBlockDevice.h"
+#include "SPIFBlockDevice.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -26,22 +27,31 @@ static const size_t bd_size = 8192;
 static const size_t bd_erase_size = 4096;
 static const size_t bd_prog_size = 16;
 static const size_t bd_read_size = 1;
+static const uint16_t name_max_size = 256;
+
 
 // Entry point for the example
 int main() {
 
     printf("\n--- Mbed OS StorageLite example ---\n");
+
 #if STORAGELITE_ENABLED
 
+#if defined(TARGET_K82F)
+    SPIFBlockDevice bd(PTE2, PTE4, PTE1, PTE5);
+    SlicingBlockDevice flash_bd(&bd, 0*4096, 4*4096);
+    printf("TARGET_K82F\n");
+#else
     HeapBlockDevice bd(bd_size, bd_read_size, bd_prog_size, bd_erase_size);
     FlashSimBlockDevice flash_bd(&bd);
+    printf("TARGET_all\n");
+#endif
 
     // StorageLite is a sigleton, get its instance
     StorageLite &stlite = StorageLite::get_instance();
 
     int rc = STORAGELITE_SUCCESS;
     uint16_t file_name_size = 1;
-    uint16_t name_max_size = 256;
     uint32_t data_buf_size = 6;
     uint16_t name_size = 0;
     uint8_t data_buf[6] = {'H','e','l','l','o'};
@@ -50,9 +60,8 @@ int main() {
     static const char* file_name_2 = "file2";
     static const char* file_name_3 = "file3";
 
-
     // Initialize StorageLite
-    rc = stlite.init(&bd);
+    rc = stlite.init(&flash_bd);
     printf("Init StorageLite. ");
     printf("Return code is %d\n", rc);
 
@@ -72,7 +81,6 @@ int main() {
     printf("Return code is %d\n", rc);
 
     // Now set some values to the same file
-
     rc = stlite.set(file_name_size, &file_name, data_buf_size, data_buf, 0);
     printf("Set file %d to data %s. ", file_name, data_buf);
     printf("Return code is %d\n", rc);

@@ -18,14 +18,14 @@ Although the board shown in this examples is K64F, the example should work on an
 
 ##  Getting started ##
 
- 1. Import the example.
+ 1. Import the repository.
 
     ```
     mbed import mbed-os-example-storagelite
     cd mbed-os-example-storagelite
     ```
 
- 2. Copy main.cpp to the main folder (mbed-os-example-storagelite)
+ 2. Copy main.cpp to the root folder (mbed-os-example-storagelite).
 
  3. Compile and generate binary.
 

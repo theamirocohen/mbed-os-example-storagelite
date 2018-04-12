@@ -18,16 +18,22 @@ Although the board shown in this examples is K64F, the example should work on an
 
 ##  Getting started ##
 
- 1. Import the example.
+ 1. Import the repository.
 
     ```
     mbed import mbed-os-example-storagelite
     cd mbed-os-example-storagelite
     ```
 
- 2. Copy main.cpp to the main folder (mbed-os-example-storagelite)
+ 2. Copy main.cpp to the root folder (mbed-os-example-storagelite).
 
- 3. Compile and generate binary.
+ 3. Deploy mbed os (needs to be done once).
+
+    ```
+    mbed deploy
+    ```
+
+ 4. Compile and generate binary.
 
     For example, for `GCC`:
 
@@ -35,18 +41,18 @@ Although the board shown in this examples is K64F, the example should work on an
     mbed compile -t GCC_ARM -m K64F
     ```
    
- 4. Open a serial console session with the target platform using the following parameters:
+ 5. Open a serial console session with the target platform using the following parameters:
 
     * **Baud rate:** 115200
     * **Data bits:** 8
     * **Stop bits:** 1
     * **Parity:** None
 
- 5. Copy the application `mbed-os-example-storagelite.bin` in the folder `mbed-os-example-storagelite/BUILD/<TARGET NAME>/<PLATFORM NAME>` onto the target board.
+ 6. Copy the application `mbed-os-example-storagelite.bin` in the folder `mbed-os-example-storagelite/BUILD/<TARGET NAME>/<PLATFORM NAME>` onto the target board.
 
- 6. Press the **RESET** button on the board to run the program
+ 7. Press the **RESET** button on the board to run the program
 
- 7. The serial console should now display a series of results following the StorageLite API invocations. 
+ 8. The serial console should now display a series of results following the StorageLite API invocations. 
  
 ## Troubleshooting
 
