@@ -15,7 +15,7 @@
 */
 
 #include "mbed.h"
-#include "storagelite.h"
+#include "StorageLite.h"
 #include "HeapBlockDevice.h"
 #include "FlashSimBlockDevice.h"
 #include "SPIFBlockDevice.h"
@@ -48,17 +48,17 @@ int main() {
 #endif
 
     // StorageLite is a sigleton, get its instance
-    StorageLite &stlite = StorageLite::get_instance();
+    //StorageLite &stlite = StorageLite::get_instance();
+    StorageLite stlite;
 
     int rc = STORAGELITE_SUCCESS;
-    uint16_t file_name_size = 1;
-    uint32_t data_buf_size = 6;
+    size_t data_buf_size = 6, file_name_size = 1;;
     uint16_t name_size = 0;
     uint8_t data_buf[6] = {'H','e','l','l','o'};
     static const uint8_t file_name = 1;
-    static const char* file_name_1 = "file1";
+    /*static const char* file_name_1 = "file1";
     static const char* file_name_2 = "file2";
-    static const char* file_name_3 = "file3";
+    static const char* file_name_3 = "file3";*/
 
     // Initialize StorageLite
     rc = stlite.init(&flash_bd);
@@ -81,11 +81,11 @@ int main() {
     printf("Return code is %d\n", rc);
 
     // Now set some values to the same file
-    rc = stlite.set(file_name_size, &file_name, data_buf_size, data_buf, 0);
+    rc = stlite.set(&file_name, file_name_size, data_buf, data_buf_size, 0);
     printf("Set file %d to data %s. ", file_name, data_buf);
     printf("Return code is %d\n", rc);
 
-    data_buf[0] = 'M';
+    /*data_buf[0] = 'M';
     rc = stlite.set(file_name_size, &file_name, data_buf_size, data_buf, 0);
     printf("Set file %d to data %s. ", file_name, data_buf);
     printf("Return code is %d\n", rc);
@@ -98,31 +98,31 @@ int main() {
     // check if this file exist
     rc = stlite.file_exists(file_name_size, &file_name);
     printf("Get file %d. ", file_name);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d\n", rc);*/
 
     // Get the data of this file (should be the last set() value)
-    uint32_t actual_data_size = 0;
-    rc = stlite.get(file_name_size, &file_name, data_buf_size, data_buf, actual_data_size);
+    size_t actual_data_size = 0;
+    rc = stlite.get(&file_name, file_name_size, data_buf, data_buf_size, actual_data_size);
     printf("Get file %d. data is %s. ", file_name, data_buf);
     printf("Return code is %d\n", rc);
 
     // Get the data size of this file (should be data_buf_size)
-    rc = stlite.get_file_size(file_name_size, &file_name, actual_data_size);
+    rc = stlite.get_file_size(&file_name, file_name_size, actual_data_size);
     printf("Get file %d. data size is %ld. ", file_name, actual_data_size);
     printf("Return code is %d\n", rc);
 
     // Now remove the file
-    rc = stlite.remove(file_name_size, &file_name);
+    rc = stlite.remove(&file_name, file_name_size);
     printf("Delete file %d. ", file_name);
     printf("Return code is %d\n", rc);
 
     // Get the file again, now it should not exist
-    rc = stlite.get(file_name_size, &file_name, data_buf_size, data_buf, actual_data_size);
+    rc = stlite.get(&file_name, file_name_size, data_buf, data_buf_size, actual_data_size);
     printf("Get file %d. ", file_name);
     printf("Return code is %d\n", rc);
 
     //add more files
-    rc = stlite.set(strlen(file_name_1), (const uint8_t *) file_name_1, data_buf_size, data_buf, 0);
+    /*rc = stlite.set(strlen(file_name_1), (const uint8_t *) file_name_1, data_buf_size, data_buf, 0);
     printf("Set file %s to data %s. ", file_name_1, data_buf);
     printf("Return code is %d\n", rc);
 
@@ -132,10 +132,10 @@ int main() {
 
     rc = stlite.set(strlen(file_name_3), (const uint8_t *) file_name_3, data_buf_size, data_buf, 0);
     printf("Set file %s to data %s. ", file_name_3, data_buf);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d\n", rc);*/
 
     //iterate through the files
-    uint32_t handle = 0;
+    /*uint32_t handle = 0;
     uint8_t cur_file_name[name_max_size] = {0};
     rc = stlite.get_first_file(name_max_size, cur_file_name, name_size, handle);
     printf("file %s retrieved. ", cur_file_name);
@@ -147,7 +147,7 @@ int main() {
 
     rc = stlite.get_next_file(name_max_size, cur_file_name, name_size, handle);
     printf("file %s retrieved. ", cur_file_name);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d\n", rc);*/
 
 #else
     printf("StorageLite is disabled for this board\n");
