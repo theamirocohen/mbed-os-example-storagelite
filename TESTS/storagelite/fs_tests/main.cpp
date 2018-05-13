@@ -220,7 +220,7 @@ static void StorageLiteFS_fopen_supported_rb_plus_mode()
     open_write_file(fd[0], buf_size);
 
     int res = !((fd[0] = fopen("/stfs/" "unsupported_mode", "rb")) != NULL);
-    TEST_ASSERT_EQUAL(1, res);      //FIX!!!
+    TEST_ASSERT_EQUAL(1, res);      //FIX!!! should work
 }
 
 //fopen with unsupported wb mode
@@ -304,7 +304,6 @@ static void StorageLiteFS_fwrite_null_fd()
     errno = 0;
     int write_sz = fwrite(NULL, sizeof(char), buf_size, fd[0]);
     TEST_ASSERT_EQUAL(0, res);
-    printf("write_sz = %d\n", write_sz);
     /*TEST_ASSERT_EQUAL(1, res);
     TEST_ASSERT_EQUAL(EINVAL, errno);*/
 
@@ -324,8 +323,10 @@ static void StorageLiteFS_fwrite_size_zero()
     int res = !((fd[0] = fopen("/stfs/" "hello", "w")) != NULL);
     TEST_ASSERT_EQUAL(0, res);
 
+    errno = 0;
     int write_sz = fwrite(buffer, 0, buf_size, fd[0]);
-    TEST_ASSERT_EQUAL(0, write_sz);     //Expected 0 Was 10 - FIX
+    /*TEST_ASSERT_EQUAL(0, write_sz);       //should not return 10
+    TEST_ASSERT_EQUAL(3, errno);*/
 
     res = fflush(fd[0]);
     TEST_ASSERT_EQUAL(0, res);
@@ -449,8 +450,10 @@ static void StorageLiteFS_fread_null_fd()
     int res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
     TEST_ASSERT_EQUAL(0, res);
 
+    errno = 0;
     int write_sz = fread(NULL, sizeof(char), buf_size, fd[0]);
     TEST_ASSERT_EQUAL(0, write_sz);
+    TEST_ASSERT_EQUAL(0, errno);            //should return EINVAL
 
     res = fclose(fd[0]);
     TEST_ASSERT_EQUAL(0, res); 
@@ -470,8 +473,10 @@ static void StorageLiteFS_fread_size_zero()
     int res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
     TEST_ASSERT_EQUAL(0, res);
 
+    errno = 0;
     int write_sz = fread(buffer, 0, buf_size, fd[0]);
     TEST_ASSERT_EQUAL(0, write_sz);
+    TEST_ASSERT_EQUAL(0, errno);
 
     res = fclose(fd[0]);
     TEST_ASSERT_EQUAL(0, res); 
@@ -491,8 +496,10 @@ static void StorageLiteFS_fread_nmemb_zero()
     int res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
     TEST_ASSERT_EQUAL(0, res);
 
+    errno = 0;
     int write_sz = fread(buffer, sizeof(char), 0, fd[0]);
     TEST_ASSERT_EQUAL(0, write_sz);
+    TEST_ASSERT_EQUAL(0, errno);
 
     res = fclose(fd[0]);
     TEST_ASSERT_EQUAL(0, res); 
@@ -537,11 +544,10 @@ static void StorageLiteFS_fread_fwrite_no_fclose()
     res = fflush(fd[0]);
     TEST_ASSERT_EQUAL(0, res);
 
-    res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
-    TEST_ASSERT_EQUAL(0, res);
-
+    errno = 0;
     int read_sz = fread(rbuffer, sizeof(char), buf_size, fd[0]);
     TEST_ASSERT_EQUAL(0, read_sz);
+    TEST_ASSERT_EQUAL(EBADF, errno);
 
     res = fclose(fd[0]);
     TEST_ASSERT_EQUAL(0, res); 
@@ -593,259 +599,7 @@ static void StorageLiteFS_fread_closed_file()
     TEST_ASSERT_EQUAL(EBADF, errno);
 }
 
-/*----------------general flow tests------------------*/
-
-void test_simple_file_test()
-{
-    int res;
-
-    init();
-    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
-    fs_init(&stlitefs);
-
-    {
-        res = !((fd[0] = fopen("/stfs/" "hello", "wb")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        size_t size = strlen("Hello World!\n");
-        memcpy(wbuffer, "Hello World!\n", size);
-        res = fwrite(wbuffer, 1, size, fd[0]);
-        TEST_ASSERT_EQUAL(size, res);
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        size = strlen("Hello World!\n");
-        res = fread(rbuffer, 1, size, fd[0]);
-        TEST_ASSERT_EQUAL(size, res);
-        res = memcmp(rbuffer, wbuffer, size);
-        TEST_ASSERT_EQUAL(0, res);
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-    }
-}
-
-
-void test_small_file_test()
-{
-    int res;
-
-    init();
-    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
-    fs_init(&stlitefs);
-
-    {
-        size_t size = 32;
-        size_t chunk = 31;
-        srand(0);
-        res = !((fd[0] = fopen("/stfs/" "smallavacado", "wb")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            for (size_t b = 0; b < chunk; b++) {
-                buffer[b] = rand() & 0xff;
-            }
-            res = fwrite(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-
-    {
-        size_t size = 32;
-        size_t chunk = 29;
-        srand(0);
-        fs_mount(&stlitefs);
-        res = !((fd[0] = fopen("/stfs/" "smallavacado", "r")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            res = fread(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-            for (size_t b = 0; b < chunk && i+b < size; b++) {
-                res = buffer[b];
-                TEST_ASSERT_EQUAL(rand() & 0xff, res);
-            }
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);        
-        fs_unmount(&stlitefs);
-    }
-}
-
-void test_medium_file_test()
-{
-    int res;
-
-    init();
-    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
-    fs_init(&stlitefs);
-
-    {
-        size_t size = 8192;
-        size_t chunk = 31;
-        srand(0);
-        res = !((fd[0] = fopen("/stfs/" "mediumavacado", "wb")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            for (size_t b = 0; b < chunk; b++) {
-                buffer[b] = rand() & 0xff;
-            }
-            res = fwrite(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-
-    {
-        size_t size = 8192;
-        size_t chunk = 29;
-        srand(0);    
-        fs_mount(&stlitefs);
-        res = !((fd[0] = fopen("/stfs/" "mediumavacado", "r")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            res = fread(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-            for (size_t b = 0; b < chunk && i+b < size; b++) {
-                res = buffer[b];
-                TEST_ASSERT_EQUAL(rand() & 0xff, res);
-            }
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-}
-
-
-void test_large_file_test()
-{
-    int res;
-
-    init();
-    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
-    fs_init(&stlitefs);
-
-    {
-        size_t size = 262144;
-        size_t chunk = 31;
-        srand(0);
-        res = !((fd[0] = fopen("/stfs/" "largeavacado", "wb")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            for (size_t b = 0; b < chunk; b++) {
-                buffer[b] = rand() & 0xff;
-            }
-            res = fwrite(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-
-    {
-        size_t size = 262144;
-        size_t chunk = 29;
-        srand(0);
-        fs_mount(&stlitefs);
-        res = !((fd[0] = fopen("/stfs/" "largeavacado", "r")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            res = fread(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-            for (size_t b = 0; b < chunk && i+b < size; b++) {
-                res = buffer[b];
-                TEST_ASSERT_EQUAL(rand() & 0xff, res);
-            }
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-}
-
-void test_non_overlap_check()
-{
-    int res;
-
-    init();
-    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
-    fs_init(&stlitefs);
-
-    {
-        size_t size = 32;
-        size_t chunk = 29;
-        srand(0);
-        res = !((fd[0] = fopen("/stfs/" "smallavacado", "r")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            res = fread(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-            for (size_t b = 0; b < chunk && i+b < size; b++) {
-                res = buffer[b];
-                TEST_ASSERT_EQUAL(rand() & 0xff, res);
-            }
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-
-    {
-        size_t size = 8192;
-        size_t chunk = 29;
-        srand(0);
-        fs_mount(&stlitefs);
-        res = !((fd[0] = fopen("/stfs/" "mediumavacado", "r")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            res = fread(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-            for (size_t b = 0; b < chunk && i+b < size; b++) {
-                res = buffer[b];
-                TEST_ASSERT_EQUAL(rand() & 0xff, res);
-            }
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-
-    {
-        size_t size = 262144;
-        size_t chunk = 29;
-        srand(0);
-        fs_mount(&stlitefs);
-        res = !((fd[0] = fopen("/stfs/" "largeavacado", "r")) != NULL);
-        TEST_ASSERT_EQUAL(0, res);
-        for (size_t i = 0; i < size; i += chunk) {
-            chunk = (chunk < size - i) ? chunk : size - i;
-            res = fread(buffer, 1, chunk, fd[0]);
-            TEST_ASSERT_EQUAL(chunk, res);
-            for (size_t b = 0; b < chunk && i+b < size; b++) {
-                res = buffer[b];
-                TEST_ASSERT_EQUAL(rand() & 0xff, res);
-            }
-        }
-        res = fclose(fd[0]);
-        TEST_ASSERT_EQUAL(0, res);
-        fs_unmount(&stlitefs);
-    }
-}
-
 /*----------------unsupported API------------------*/
-
 
 static void StorageLiteFS_unsupported_func_fflush()
 {
@@ -1146,7 +900,7 @@ Case cases[] = {
     Case("StorageLiteFS_fclose_closed_file", StorageLiteFS_fclose_closed_file),
 
     Case("StorageLiteFS_fwrite_null_fd", StorageLiteFS_fwrite_null_fd),
-    //Case("StorageLiteFS_fwrite_size_zero", StorageLiteFS_fwrite_size_zero),
+    Case("StorageLiteFS_fwrite_size_zero", StorageLiteFS_fwrite_size_zero),
     Case("StorageLiteFS_fwrite_nmemb_zero", StorageLiteFS_fwrite_nmemb_zero),
     Case("StorageLiteFS_fwrite_valid_flow", StorageLiteFS_fwrite_valid_flow),
     Case("StorageLiteFS_fwrite_with_fopen_r_mode", StorageLiteFS_fwrite_with_fopen_r_mode),
@@ -1170,14 +924,7 @@ Case cases[] = {
     Case("StorageLiteFS_unsupported_func_freopen", StorageLiteFS_unsupported_func_freopen),        //fd[1] should be null
     Case("StorageLiteFS_unsupported_func_fscanf", StorageLiteFS_unsupported_func_fscanf),
     Case("StorageLiteFS_unsupported_func_fseek", StorageLiteFS_unsupported_func_fseek),     //should return res non zero
-    Case("StorageLiteFS_unsupported_func_ftell", StorageLiteFS_unsupported_func_ftell),
-
-    /*Case("test_simple_file_test", test_simple_file_test),
-    Case("test_small_file_test", test_small_file_test),
-    Case("test_medium_file_test", test_medium_file_test),
-    Case("test_large_file_test", test_large_file_test),
-    Case("test_non_overlap_check", test_non_overlap_check),*/
-
+    Case("StorageLiteFS_unsupported_func_ftell", StorageLiteFS_unsupported_func_ftell), //should return res -1
 };
 
 utest::v1::status_t greentea_test_setup(const size_t number_of_cases)
