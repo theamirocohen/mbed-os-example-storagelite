@@ -21,7 +21,7 @@ Set Max Files, Remove all files – then check you can still add MAX files
 add many files (even max files), remove them, try to Get/Remove
 */
 
-#include "storagelite.h"
+#include "StorageLite.h"
 #include "HeapBlockDevice.h"
 #include "greentea-client/test_env.h"
 #include "unity/unity.h"
@@ -29,9 +29,9 @@ add many files (even max files), remove them, try to Get/Remove
 
 using namespace utest::v1;
 
-static const uint32_t data_buf_size        =  10;
-static const uint16_t default_name_size    =  16;
-static const uint8_t  default_name         = 123;
+static const size_t data_buf_size        =  10;
+static const size_t default_name_size    =  16;
+static const uint8_t default_name         = 123;
 static const uint16_t max_files            = 5;
 
 static const size_t bd_size = 8192;
@@ -39,7 +39,7 @@ static const size_t bd_erase_size = 4096;
 static const size_t bd_prog_size = 1;
 static const size_t bd_read_size = 1;
 
-StorageLite * stlite = NULL;
+StorageLite stlite;
 
 
 /**************help functions*****************/
@@ -50,7 +50,7 @@ static void set_max_files()
     uint16_t i = 0;
     do 
     {
-        status = stlite->set(i++, &default_name, 0, NULL, 0);
+        status = stlite.set(&default_name, i++, NULL, 0, 0);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     }
     while(i < max_files);
@@ -62,7 +62,7 @@ static void remove_max_files()
     uint16_t i = 0;
     do
     {
-        status = stlite->remove(i++, &default_name);
+        status = stlite.remove(&default_name, i++);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     }
     while(i < max_files);
@@ -72,17 +72,18 @@ static void storagelite_stress_single_file_exceed_area()
 {
     int status = STORAGELITE_SUCCESS;
     bool area_wasnt_swaped = false;
+    printf("in test\n");
 
     do 
     {
-        status = stlite->set(default_name_size, &default_name, 0, NULL, 0);
+        status = stlite.set(&default_name, default_name_size, NULL, 0, 0);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     }
     while(area_wasnt_swaped);
 
-    uint32_t actual_len_bytes = 0;
+    size_t actual_len_bytes = 0;
     uint8_t data_buf[data_buf_size] = {0};
-    status = stlite->get(default_name_size, &default_name, data_buf_size, data_buf, actual_len_bytes);
+    status = stlite.get(&default_name, default_name_size, data_buf, data_buf_size, actual_len_bytes);
 
     TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
 }
@@ -95,19 +96,19 @@ static void storagelite_stress_multiple_files_exceed_area()
     
     do 
     {
-        status = stlite->set(i++, &default_name, 0, NULL, 0);
+        status = stlite.set( &default_name, i++, NULL, 0, 0);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     }
     while(area_wasnt_swaped);
 
     int number_of_files_in_area = i;
 
-    uint32_t actual_len_bytes = 0;
+    size_t actual_len_bytes = 0;
     uint8_t data_buf[data_buf_size] = {0};
     i = 0;
     do
     {
-        status = stlite->get(i++, &default_name, data_buf_size, data_buf, actual_len_bytes);
+        status = stlite.get(&default_name, i++, data_buf, data_buf_size, actual_len_bytes);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     }
     while(i < number_of_files_in_area);
@@ -120,7 +121,7 @@ static void storagelite_stress_max_files_allowed()
 
     set_max_files();
 
-    status = stlite->set(i, &default_name, 0, NULL, 0);
+    status = stlite.set(&default_name, i, NULL, 0, 0);
     TEST_ASSERT_EQUAL(STORAGELITE_MAX_FILES_REACHED, status);
 }
 
@@ -142,9 +143,9 @@ static void storagelite_stress_max_files_set_remove_get()
 
     remove_max_files();
 
+    size_t actual_len_bytes = 0;
     uint8_t data_buf[data_buf_size] = {0};
-    uint32_t actual_len_bytes = 0;
-    status = stlite->get(i, &default_name, data_buf_size, data_buf, actual_len_bytes);
+    status = stlite.get(&default_name, i, data_buf, data_buf_size, actual_len_bytes);
     TEST_ASSERT_EQUAL(STORAGELITE_NOT_FOUND, status);
 }
 
@@ -153,13 +154,13 @@ static void storagelite_stress_max_files_set_remove_get()
 utest::v1::status_t setup_init(const Case *const source, const size_t index_of_case, uint16_t max_bd_files)
 {
     HeapBlockDevice bd(bd_size, bd_read_size, bd_prog_size, bd_erase_size);
-    stlite = &StorageLite::get_instance();
-    if (!stlite) {
+    //StorageLite stlite;
+    /*if (!stlite) {
         printf("no stlite!\n");
         return STATUS_ABORT;
-    }
+    }*/
     printf("stlite addr = %p\n", stlite);
-    if (stlite->init(&bd, max_bd_files) != STORAGELITE_SUCCESS) 
+    if (stlite.init(&bd, max_bd_files) != STORAGELITE_SUCCESS) 
     {
         printf("no init!\n");
     }
@@ -174,7 +175,7 @@ utest::v1::status_t setup_handler(const Case *const source, const size_t index_o
 
 utest::v1::status_t tear_down_handler(const Case *const source, const size_t passed, const size_t failed, const failure_t reason)
 {
-    stlite->deinit();
+    stlite.deinit();
     return STATUS_CONTINUE;
 }
 
