@@ -25,14 +25,16 @@
 
 using namespace utest::v1;
 
-static const size_t buf_size        =  10;
+static const size_t buf_size          = 10;
+static const size_t test_buffer       = 8192;
+static const size_t test_files        = 4;
 
-#define MBED_TEST_BUFFER 8192
-#define MBED_TEST_FILES 4
-FILE *fd[MBED_TEST_FILES];
-uint8_t wbuffer[MBED_TEST_BUFFER];
-uint8_t rbuffer[MBED_TEST_BUFFER];
-uint8_t buffer[MBED_TEST_BUFFER];
+FILE *fd[test_files];
+uint8_t wbuffer[test_buffer];
+uint8_t rbuffer[test_buffer];
+uint8_t buffer[test_buffer];
+StorageLite stlite;
+
 
 #ifdef TEST_SPIF
 #ifdef TARGET_K82F
@@ -40,11 +42,9 @@ uint8_t buffer[MBED_TEST_BUFFER];
 #else
         SPIFBlockDevice bd(D11, D12, D13, D8);
 #endif
-        SlicingBlockDevice flash_bd(&bd, 0 * 4096, /*64 * 4096*/ bd.size());
+        SlicingBlockDevice flash_bd(&bd, 0 * 4096, bd.size());
 #elif defined(TEST_SD)
-        //SDBlockDevice bd(PTE3, PTE1, PTE2, PTE4);
         HeapBlockDevice bd(512 * 512, 16, 16, 512);
-        //SlicingBlockDevice slice_bd(&bd, 0 * 4096, bd.size());
         BufferedBlockDevice buf_bd(&bd);
         FlashSimBlockDevice flash_bd(&buf_bd);
 #endif
@@ -54,11 +54,7 @@ uint8_t buffer[MBED_TEST_BUFFER];
     FlashSimBlockDevice flash_bd(&bd);
 #endif
 
-static const char *slfs_name = "stfs";
-
-StorageLite stlite;
-
-/* help functions */
+/*----------------help functions------------------*/
 
 static void init()
 {
@@ -76,22 +72,6 @@ static void fs_init(StorageLiteFS *stlitefs)
     TEST_ASSERT_EQUAL(0, result);
 
     result = stlitefs->reformat(&flash_bd);
-    TEST_ASSERT_EQUAL(0, result);
-}
-
-static void fs_mount(StorageLiteFS *stlitefs)
-{
-    int result = STORAGELITE_SUCCESS;
-
-    result = stlitefs->mount(&flash_bd);
-    TEST_ASSERT_EQUAL(0, result);
-}
-
-static void fs_unmount(StorageLiteFS *stlitefs)
-{
-    int result = STORAGELITE_SUCCESS;
-
-    result = stlitefs->unmount();
     TEST_ASSERT_EQUAL(0, result);
 }
 
@@ -433,14 +413,78 @@ static void StorageLiteFS_fwrite_closed_file()
     TEST_ASSERT_EQUAL(EBADF, errno);
 }
 
+//fwrite twice to the same file
+static void StorageLiteFS_fwrite_twice_to_file()
+{
+    char buffer[buf_size] = "good_day";
+
+    init();
+    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
+    fs_init(&stlitefs);
+
+    int res = !((fd[0] = fopen("/stfs/" "hello", "w")) != NULL);
+    TEST_ASSERT_EQUAL(0, res);
+
+    errno = 0;
+    int write_sz = fwrite(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(buf_size, write_sz);
+    TEST_ASSERT_EQUAL(0, errno);
+
+    res = fflush(fd[0]);
+    TEST_ASSERT_EQUAL(0, res);
+
+    errno = 0;
+    write_sz = fwrite(buffer, sizeof(char), buf_size, fd[0]);       //SHOULD FAIL!
+    TEST_ASSERT_EQUAL(buf_size, write_sz);
+    TEST_ASSERT_EQUAL(0, errno);
+
+    res = fclose(fd[0]);
+    TEST_ASSERT_EQUAL(-1, res);
+}
+
+//fwrite twice to the same file
+static void StorageLiteFS_fwrite_twice_separated_with_fclose()
+{
+    char buffer[buf_size] = "good_day";
+
+    init();
+    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
+    fs_init(&stlitefs);
+
+    int res = !((fd[0] = fopen("/stfs/" "hello", "w")) != NULL);
+    TEST_ASSERT_EQUAL(0, res);
+
+    errno = 0;
+    int write_sz = fwrite(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(buf_size, write_sz);
+    TEST_ASSERT_EQUAL(0, errno);
+
+    res = fflush(fd[0]);
+    TEST_ASSERT_EQUAL(0, res);
+
+    res = fclose(fd[0]);
+    TEST_ASSERT_EQUAL(0, res);
+
+    res = !((fd[0] = fopen("/stfs/" "hello", "w")) != NULL);
+    TEST_ASSERT_EQUAL(0, res);
+
+    errno = 0;
+    write_sz = fwrite(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(buf_size, write_sz);
+    TEST_ASSERT_EQUAL(0, errno);
+
+    res = fflush(fd[0]);
+    TEST_ASSERT_EQUAL(0, res);
+
+    res = fclose(fd[0]);
+    TEST_ASSERT_EQUAL(0, res);
+}
 
 /*----------------fread()------------------*/
 
 //fread with ptr as NULL, size and nmemb not zero
 static void StorageLiteFS_fread_null_fd()
 {
-    char buffer[buf_size] = {};
-    
     init();
     StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
     fs_init(&stlitefs);
@@ -451,8 +495,8 @@ static void StorageLiteFS_fread_null_fd()
     TEST_ASSERT_EQUAL(0, res);
 
     errno = 0;
-    int write_sz = fread(NULL, sizeof(char), buf_size, fd[0]);
-    TEST_ASSERT_EQUAL(0, write_sz);
+    int read_sz = fread(NULL, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(0, read_sz);
     TEST_ASSERT_EQUAL(0, errno);            //should return EINVAL
 
     res = fclose(fd[0]);
@@ -474,8 +518,8 @@ static void StorageLiteFS_fread_size_zero()
     TEST_ASSERT_EQUAL(0, res);
 
     errno = 0;
-    int write_sz = fread(buffer, 0, buf_size, fd[0]);
-    TEST_ASSERT_EQUAL(0, write_sz);
+    int read_sz = fread(buffer, 0, buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(0, read_sz);
     TEST_ASSERT_EQUAL(0, errno);
 
     res = fclose(fd[0]);
@@ -497,8 +541,8 @@ static void StorageLiteFS_fread_nmemb_zero()
     TEST_ASSERT_EQUAL(0, res);
 
     errno = 0;
-    int write_sz = fread(buffer, sizeof(char), 0, fd[0]);
-    TEST_ASSERT_EQUAL(0, write_sz);
+    int read_sz = fread(buffer, sizeof(char), 0, fd[0]);
+    TEST_ASSERT_EQUAL(0, read_sz);
     TEST_ASSERT_EQUAL(0, errno);
 
     res = fclose(fd[0]);
@@ -519,8 +563,8 @@ static void StorageLiteFS_fread_valid_flow()
     int res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
     TEST_ASSERT_EQUAL(0, res);
 
-    int write_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
-    TEST_ASSERT_EQUAL(buf_size, write_sz);
+    int read_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(buf_size, read_sz);
 
     res = fclose(fd[0]);
     TEST_ASSERT_EQUAL(0, res); 
@@ -568,8 +612,8 @@ static void StorageLiteFS_fread_with_fopen_w_mode()
     TEST_ASSERT_EQUAL(0, res);
 
     errno = 0;
-    int write_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
-    TEST_ASSERT_EQUAL(0, write_sz);
+    int read_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(0, read_sz);
     TEST_ASSERT_EQUAL(EBADF, errno);
 
     res = fclose(fd[0]);
@@ -594,9 +638,67 @@ static void StorageLiteFS_fread_closed_file()
     TEST_ASSERT_EQUAL(0, res); 
 
     errno = 0;
-    int write_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
-    TEST_ASSERT_EQUAL(0, write_sz);
+    int read_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(0, read_sz);
     TEST_ASSERT_EQUAL(EBADF, errno);
+}
+
+//fread twice from file
+static void StorageLiteFS_fread_twice_from_file()
+{
+    char buffer[buf_size] = {};
+
+    init();
+    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
+    fs_init(&stlitefs);
+
+    open_write_file(fd[0], buf_size);
+
+    int res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
+    TEST_ASSERT_EQUAL(0, res);
+
+    int read_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(buf_size, read_sz);
+
+    errno = 0;
+    read_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(0, read_sz);
+    TEST_ASSERT_EQUAL(38, errno);           //doesnt react to ENOSYS as 38
+
+    res = fclose(fd[0]);
+    TEST_ASSERT_EQUAL(0, res); 
+}
+
+//fread twice from file
+static void StorageLiteFS_fread_twice_separated_with_fclose()
+{
+    char buffer[buf_size] = {};
+
+    init();
+    StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
+    fs_init(&stlitefs);
+
+    open_write_file(fd[0], buf_size);
+
+    int res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
+    TEST_ASSERT_EQUAL(0, res);
+
+    int read_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(buf_size, read_sz);
+
+    res = fclose(fd[0]);
+    TEST_ASSERT_EQUAL(0, res); 
+
+    res = !((fd[0] = fopen("/stfs/" "hello", "r")) != NULL);
+    TEST_ASSERT_EQUAL(0, res);
+
+    errno = 0;
+    read_sz = fread(buffer, sizeof(char), buf_size, fd[0]);
+    TEST_ASSERT_EQUAL(buf_size, read_sz);
+    TEST_ASSERT_EQUAL(0, errno);
+
+    res = fclose(fd[0]);
+    TEST_ASSERT_EQUAL(0, res); 
 }
 
 /*----------------unsupported API------------------*/
@@ -829,8 +931,7 @@ static void StorageLiteFS_unsupported_func_fseek()
     TEST_ASSERT_EQUAL(0, res);
 
     errno = 0;
-    char str[buf_size];
-    res = fseek (fd[0] , (buf_size / 2), SEEK_SET);
+    res = fseek(fd[0] , (buf_size / 2), SEEK_SET);
     TEST_ASSERT_EQUAL(0, res);
     TEST_ASSERT_EQUAL(0, errno);
 
@@ -841,7 +942,6 @@ static void StorageLiteFS_unsupported_func_fseek()
 static void StorageLiteFS_unsupported_func_ftell()
 {
     char buffer[buf_size] = "good_day";
-    fpos_t pos;
 
     init();
     StorageLiteFS stlitefs("stfs", &stlite, StorageLite::encrypt_flag);
@@ -905,6 +1005,8 @@ Case cases[] = {
     Case("StorageLiteFS_fwrite_valid_flow", StorageLiteFS_fwrite_valid_flow),
     Case("StorageLiteFS_fwrite_with_fopen_r_mode", StorageLiteFS_fwrite_with_fopen_r_mode),
     Case("StorageLiteFS_fwrite_closed_file", StorageLiteFS_fwrite_closed_file),
+    Case("StorageLiteFS_fwrite_twice_to_file", StorageLiteFS_fwrite_twice_to_file),
+    Case("StorageLiteFS_fwrite_twice_separated_with_fclose", StorageLiteFS_fwrite_twice_separated_with_fclose),
 
     //Case("StorageLiteFS_fread_null_fd", StorageLiteFS_fread_null_fd), //CRASH!!!
     Case("StorageLiteFS_fread_size_zero", StorageLiteFS_fread_size_zero),
@@ -913,6 +1015,8 @@ Case cases[] = {
     Case("StorageLiteFS_fread_fwrite_no_fclose", StorageLiteFS_fread_fwrite_no_fclose),
     Case("StorageLiteFS_fread_with_fopen_w_mode", StorageLiteFS_fread_with_fopen_w_mode),
     Case("StorageLiteFS_fread_closed_file", StorageLiteFS_fread_closed_file),
+    Case("StorageLiteFS_fread_twice_from_file", StorageLiteFS_fread_twice_from_file),
+    Case("StorageLiteFS_fread_twice_separated_with_fclose", StorageLiteFS_fread_twice_separated_with_fclose),
 
     Case("StorageLiteFS_unsupported_func_fflush", StorageLiteFS_unsupported_func_fflush),       //SHOULD FAIL
     Case("StorageLiteFS_unsupported_func_fgetc", StorageLiteFS_unsupported_func_fgetc),
@@ -924,7 +1028,7 @@ Case cases[] = {
     Case("StorageLiteFS_unsupported_func_freopen", StorageLiteFS_unsupported_func_freopen),        //fd[1] should be null
     Case("StorageLiteFS_unsupported_func_fscanf", StorageLiteFS_unsupported_func_fscanf),
     Case("StorageLiteFS_unsupported_func_fseek", StorageLiteFS_unsupported_func_fseek),     //should return res non zero
-    Case("StorageLiteFS_unsupported_func_ftell", StorageLiteFS_unsupported_func_ftell), //should return res -1
+    Case("StorageLiteFS_unsupported_func_ftell", StorageLiteFS_unsupported_func_ftell), //should return res -1*/
 };
 
 utest::v1::status_t greentea_test_setup(const size_t number_of_cases)
