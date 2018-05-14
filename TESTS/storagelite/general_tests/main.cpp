@@ -243,11 +243,11 @@ static void set_thread(uint8_t * file_name)
 {
     int status = STORAGELITE_SUCCESS;
 
-    status = stlite->set(file_name, default_name_size, NULL, 0, 0);
+    status = stlite->set(file_name, 1, NULL, 0, 0);
     printf("file_name is %d\n", *file_name);
 
     TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
-    terminated();
+    //terminated();
 }
 
 //multithreaded set, check with get all files were created succesfully
@@ -255,42 +255,47 @@ static void storagelite_set_multithreded()
 {
     int status = STORAGELITE_SUCCESS;
     Thread T1, T2, T3;
-    uint8_t i = 0;
+    uint8_t i1 = 0;
+    uint8_t i2 = 1;
+    uint8_t i3 = 2;
 
-    osStatus err = T1.start(callback(set_thread, &i));
+    osStatus err = T1.start(callback(set_thread, &i1));
     if (err) {
        TEST_FAIL_MESSAGE("creating thread failed!");
     }
-    /*i++;
-    err = T2.start(callback(set_thread, &i));
+    
+    err = T2.start(callback(set_thread, &i2));
     if (err) {
        TEST_FAIL_MESSAGE("creating thread failed!");
     }
-    i++;
-    err = T3.start(callback(set_thread, &i));
+    
+    err = T3.start(callback(set_thread, &i3));
     if (err) {
        TEST_FAIL_MESSAGE("creating thread failed!");
-    }*/
+    }
     err = T1.join();
     if (err) {
        TEST_FAIL_MESSAGE("joining thread failed!");
     }
-    size_t actual_len_bytes = 0;
-    for (i = 0; i < 1; i++) 
-    {
-        status = stlite->get(&i, default_name_size, NULL, 0, actual_len_bytes);
-        TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
-    }
 
-
-    /*err = T2.join();
+    err = T2.join();
     if (err) {
        TEST_FAIL_MESSAGE("joining thread failed!");
     }
     err = T3.join();
     if (err) {
        TEST_FAIL_MESSAGE("joining thread failed!");
-    }*/
+    }
+
+    size_t actual_len_bytes = 0;
+
+    for (uint8_t i = 0; i < 1; i++) 
+    {
+        status = stlite->get(&i, 1, NULL, 0, actual_len_bytes);
+        TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+    }
+
+
     terminated();
 }
 
@@ -1455,8 +1460,8 @@ Case cases[] = {
          setup_handler, storagelite_set_name_len_bigger_than_max),
     Case("storagelite_set_buf_len_bigger_than_max",
          setup_handler, storagelite_set_buf_len_bigger_than_max), 
-    /*Case("storagelite_set_invalid_flags",     //fail
-         setup_handler, storagelite_set_invalid_flags, tear_down_handler, greentea_failure_handler),*/
+    Case("storagelite_set_invalid_flags",     //fail
+         setup_handler, storagelite_set_invalid_flags/*, tear_down_handler, greentea_failure_handler*/),
     Case("storagelite_set_buf_size_not_zero_buf_null",
          setup_handler, storagelite_set_buf_size_not_zero_buf_null),
     Case("storagelite_set_buf_size_zero_buf_not_null",
@@ -1465,8 +1470,8 @@ Case cases[] = {
          setup_handler, storagelite_set_buf_size_zero_buf_null),
     Case("storagelite_set_two_files_same_params",
          setup_handler, storagelite_set_two_files_same_params),
-    /*Case("storagelite_set_multithreded",  //fail
-         setup_handler, storagelite_set_multithreded, tear_down_handler, greentea_failure_handler),*/
+    Case("storagelite_set_multithreded",  //fail
+         setup_handler, storagelite_set_multithreded/*, tear_down_handler, greentea_failure_handler*/),
     /*------------------get()------------------*/
 /* Case("storagelite_get_same_hash", 
          setup_handler, storagelite_get_same_hash),*/
