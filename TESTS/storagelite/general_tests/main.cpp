@@ -24,6 +24,17 @@
 #include "nvstore.h"
 #include "sha256.h"
 
+#define LOCAL_TEST
+
+#if !defined(MBED_TEST_BLOCKDEVICE) && !defined(LOCAL_TEST)
+#error [NOT_SUPPORTED] StorageLite test not supported on this platform
+#endif
+
+#if !STORAGELITE_ENABLED
+#error [NOT_SUPPORTED] StorageLite needs to be enabled for this test
+#endif
+
+
 using namespace utest::v1;
 
 static const uint32_t data_buf_size        = 10;
@@ -143,7 +154,6 @@ static void storagelite_set_name_null_name_len_not_zero()
     status = stlite->set(NULL, default_name_size, data_buf, data_buf_size, 0);
 
     TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    //TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     terminated();
 }
 
@@ -165,8 +175,7 @@ static void storagelite_set_name_len_bigger_than_max()
     uint8_t data_buf[data_buf_size] = {0};
     status = stlite->set(&default_name, name_max_size + 1, data_buf, data_buf_size, 0);
 
-    TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -189,8 +198,7 @@ static void storagelite_set_invalid_flags()
     uint8_t data_buf[data_buf_size] = {0};
     status = stlite->set(&default_name, default_name_size, data_buf, data_buf_size, invalid_flags);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -200,8 +208,7 @@ static void storagelite_set_buf_size_not_zero_buf_null()
 
     status = stlite->set(&default_name, default_name_size, NULL, data_buf_size, 0);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -345,18 +352,15 @@ static void storagelite_get_name_len_bigger_than_max()
     uint8_t data_buf[data_buf_size] = {0};
     status = stlite->get(&default_name, name_max_size + 1, data_buf, data_buf_size, actual_len_bytes);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
 static void storagelite_get_buf_size_not_zero_buf_null()
 {
     int status = STORAGELITE_SUCCESS;
-    printf("hello!\n");
     size_t actual_len_bytes = 0;
     status = stlite->get(&default_name, default_name_size, NULL, data_buf_size, actual_len_bytes);
-    printf("hello2!\n");
     TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
@@ -590,8 +594,7 @@ static void storagelite_remove_name_not_null_name_len_zero()
 
     status = stlite->remove(&default_name, 0);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    TEST_ASSERT_EQUAL(STORAGELITE_NOT_FOUND, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -601,8 +604,7 @@ static void storagelite_remove_name_len_bigger_than_max()
 
     status = stlite->remove(&default_name, name_max_size + 1);
 
-    TEST_ASSERT_EQUAL(STORAGELITE_NOT_FOUND, status);
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -702,8 +704,7 @@ static void storagelite_get_item_size_name_len_bigger_than_max()
     size_t actual_data_size = 0;
     status = stlite->get_file_size(&default_name, name_max_size + 1, actual_data_size);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    TEST_ASSERT_EQUAL(STORAGELITE_NOT_FOUND, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -837,8 +838,7 @@ static void storagelite_file_exists_name_len_bigger_than_max()
 
     status = stlite->file_exists(&default_name, name_max_size + 1);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    TEST_ASSERT_EQUAL(STORAGELITE_NOT_FOUND, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -937,8 +937,7 @@ static void storagelite_get_file_flags_name_len_bigger_than_max()
     uint32_t flags = 0;
     status = stlite->get_file_flags(&default_name, name_max_size + 1, flags);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
-    TEST_ASSERT_EQUAL(STORAGELITE_NOT_FOUND, status);
+    TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
 
@@ -1024,7 +1023,6 @@ static void storagelite_get_first_file_max_name_bigger_than_max()
     uint16_t file_name_buf_size = name_max_size + 1;
     status = stlite->get_first_file(file_name, file_name_buf_size, file_name_size, handle);
 
-    //TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     terminated();
 }
@@ -1198,7 +1196,6 @@ static void storagelite_get_next_file_valid_flow()
     status = stlite->get_first_file(file_name, file_name_buf_size, file_name_size, handle);
 
     TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
-    printf("wow\n");
 
     file_name_buf_size = name_max_size;
     status = stlite->get_next_file(file_name, file_name_buf_size + 1, file_name_size, handle);
@@ -1218,12 +1215,10 @@ static void storagelite_get_next_file_invalid_handle()
     status = stlite->get_first_file(file_name, file_name_buf_size, file_name_size, handle);
 
     TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
-    printf("handle = %d\n");
-
-    handle++;
-    printf("handle = %d\n");
-    status = stlite->get_first_file(file_name, file_name_buf_size, file_name_size, handle);
-
+   
+    handle=15;
+    status = stlite->get_next_file(file_name, file_name_buf_size, file_name_size, handle);
+   
     TEST_ASSERT_EQUAL(STORAGELITE_BAD_VALUE, status);
     terminated();
 }
@@ -1473,20 +1468,16 @@ Case cases[] = {
     Case("storagelite_set_multithreded",  //fail
          setup_handler, storagelite_set_multithreded/*, tear_down_handler, greentea_failure_handler*/),
     /*------------------get()------------------*/
-/* Case("storagelite_get_same_hash", 
-         setup_handler, storagelite_get_same_hash),*/
-
     Case("storagelite_get_name_null_name_len_zero",
          setup_handler_set_file, storagelite_get_name_null_name_len_zero),
     Case("storagelite_get_name_null_name_len_not_zero",
          setup_handler_set_file, storagelite_get_name_null_name_len_not_zero),
     Case("storagelite_get_name_len_zero_name_not_null",
          setup_handler_set_file, storagelite_get_name_len_zero_name_not_null),
-    /* OFR_DBG should be unabled after 1024 tested in storagelite code
     Case("storagelite_get_name_len_bigger_than_max",
-         setup_handler_set_file, storagelite_get_name_len_bigger_than_max), */
-    /*Case("storagelite_get_buf_size_not_zero_buf_null",    //fail
-         setup_handler_set_file, storagelite_get_buf_size_not_zero_buf_null, tear_down_handler, greentea_failure_handler),*/
+         setup_handler_set_file, storagelite_get_name_len_bigger_than_max), 
+//     Case("storagelite_get_buf_size_not_zero_buf_null",    //fail
+//         setup_handler_set_file, storagelite_get_buf_size_not_zero_buf_null/*, tear_down_handler, greentea_failure_handler*/), 
     Case("storagelite_get_not_empty_file_buf_size_zero_buf_null",
          setup_handler_set_file, storagelite_get_not_empty_file_buf_size_zero_buf_null),
     Case("storagelite_get_empty_file_buf_size_zero_buf_null",
@@ -1499,8 +1490,6 @@ Case cases[] = {
          setup_handler_set_file, storagelite_get_existing_file),
     Case("storagelite_get_removed_file",
          setup_handler_set_file, storagelite_get_removed_file),
-   // Case("storagelite_get_same_hash", 
-   //      setup_handler, storagelite_get_same_hash),
     Case("storagelite_get_rollback_file", //rollbacck fail
          setup_handler, storagelite_get_rollback_file),
     Case("storagelite_get_corrupt_rollback_file",
@@ -1554,8 +1543,8 @@ Case cases[] = {
          setup_handler_set_file, storagelite_file_exists_name_not_null_name_len_zero),
     Case("storagelite_file_exists_name_len_bigger_than_max",
          setup_handler_set_file, storagelite_file_exists_name_len_bigger_than_max),
-    //Case("storagelite_file_exists_non_existing_file",         //get stuck here
-    //     setup_handler_set_file, storagelite_file_exists_non_existing_file),
+    Case("storagelite_file_exists_non_existing_file",         //get stuck here
+         setup_handler_set_file, storagelite_file_exists_non_existing_file),
     Case("storagelite_file_exists_existing_file",
          setup_handler_set_file, storagelite_file_exists_existing_file),
     Case("storagelite_file_exists_removed_file",
@@ -1584,8 +1573,8 @@ Case cases[] = {
          setup_handler_set_file, storagelite_get_first_file_max_name_size_zero),
     Case("storagelite_get_first_file_max_name_bigger_than_max",
          setup_handler_set_file, storagelite_get_first_file_max_name_bigger_than_max),
-    //Case("storagelite_get_first_file_no_file_in_storage", //finds the file
-    //     setup_handler, storagelite_get_first_file_no_file_in_storage),
+    Case("storagelite_get_first_file_no_file_in_storage", //finds the file
+         setup_handler, storagelite_get_first_file_no_file_in_storage),
     Case("storagelite_get_first_file_max_name_size_too_small",
          setup_handler_set_file, storagelite_get_first_file_max_name_size_too_small),
     Case("storagelite_get_first_file_valid_flow",
@@ -1597,14 +1586,14 @@ Case cases[] = {
          setup_handler_set_multiple_files, storagelite_get_next_file_max_name_size_zero),
     Case("storagelite_get_next_file_max_name_bigger_than_max",
          setup_handler_set_multiple_files, storagelite_get_next_file_max_name_bigger_than_max),
-    /*Case("storagelite_get_next_file_no_file_in_storage",
-         setup_handler_set_multiple_files, storagelite_get_next_file_no_file_in_storage),*/
+    Case("storagelite_get_next_file_no_file_in_storage",
+         setup_handler_set_file, storagelite_get_next_file_no_file_in_storage),
     Case("storagelite_get_next_file_max_name_size_too_small",
          setup_handler_set_multiple_files, storagelite_get_next_file_max_name_size_too_small),
     Case("storagelite_get_next_file_valid_flow",
          setup_handler_set_multiple_files, storagelite_get_next_file_valid_flow),
-    //Case("storagelite_get_next_file_invalid_handle",  //handle has no meaning in implementation
-    //     setup_handler_set_multiple_files, storagelite_get_next_file_invalid_handle),
+    Case("storagelite_get_next_file_invalid_handle", 
+         setup_handler_set_multiple_files, storagelite_get_next_file_invalid_handle),
     Case("storagelite_get_next_file_not_first",
          setup_handler_set_multiple_files, storagelite_get_next_file_not_first),
     /*------------------factory_reset()------------------*/
