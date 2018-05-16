@@ -27,8 +27,8 @@ static const size_t bd_size = 8192;
 static const size_t bd_erase_size = 4096;
 static const size_t bd_prog_size = 16;
 static const size_t bd_read_size = 1;
-static const uint16_t name_max_size = 256;
 
+static const uint16_t name_size = 512;
 
 // Entry point for the example
 int main() {
@@ -47,23 +47,20 @@ int main() {
     printf("TARGET_all\n");
 #endif
 
-    // StorageLite is a sigleton, get its instance
-    //StorageLite &stlite = StorageLite::get_instance();
     StorageLite stlite;
 
     int rc = STORAGELITE_SUCCESS;
     size_t data_buf_size = 6, file_name_size = 1;;
-    uint16_t name_size = 0;
     uint8_t data_buf[6] = {'H','e','l','l','o'};
     static const uint8_t file_name = 1;
-    /*static const char* file_name_1 = "file1";
+    static const char* file_name_1 = "file1";
     static const char* file_name_2 = "file2";
-    static const char* file_name_3 = "file3";*/
+    static const char* file_name_3 = "file3";
 
     // Initialize StorageLite
     rc = stlite.init(&flash_bd);
     printf("Init StorageLite. ");
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     // Show StorageLite size, area addresses and sizes
     printf("StorageLite size is %d\n", stlite.size());
@@ -78,76 +75,77 @@ int main() {
     // Clear StorageLite data. Should only be done once at factory configuration
     rc = stlite.reset();
     printf("Reset StorageLite. ");
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     // Now set some values to the same file
     rc = stlite.set(&file_name, file_name_size, data_buf, data_buf_size, 0);
     printf("Set file %d to data %s. ", file_name, data_buf);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
-    /*data_buf[0] = 'M';
-    rc = stlite.set(file_name_size, &file_name, data_buf_size, data_buf, 0);
+    data_buf[0] = 'M';
+    rc = stlite.set(&file_name, file_name_size, data_buf, data_buf_size, 0);
     printf("Set file %d to data %s. ", file_name, data_buf);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     data_buf[0] = 'L';
-    rc = stlite.set(file_name_size, &file_name, data_buf_size, data_buf, 0);
+    rc = stlite.set(&file_name, file_name_size, data_buf, data_buf_size, 0);
     printf("Set file %d to data %s. ", file_name, data_buf);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     // check if this file exist
-    rc = stlite.file_exists(file_name_size, &file_name);
+    rc = stlite.file_exists(&file_name, file_name_size);
     printf("Get file %d. ", file_name);
-    printf("Return code is %d\n", rc);*/
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     // Get the data of this file (should be the last set() value)
     size_t actual_data_size = 0;
     rc = stlite.get(&file_name, file_name_size, data_buf, data_buf_size, actual_data_size);
     printf("Get file %d. data is %s. ", file_name, data_buf);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     // Get the data size of this file (should be data_buf_size)
     rc = stlite.get_file_size(&file_name, file_name_size, actual_data_size);
-    printf("Get file %d. data size is %ld. ", file_name, actual_data_size);
-    printf("Return code is %d\n", rc);
+    printf("Get file %d. data size is %d. ", file_name, actual_data_size);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     // Now remove the file
     rc = stlite.remove(&file_name, file_name_size);
     printf("Delete file %d. ", file_name);
-    printf("Return code is %d\n", rc);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     // Get the file again, now it should not exist
     rc = stlite.get(&file_name, file_name_size, data_buf, data_buf_size, actual_data_size);
-    printf("Get file %d. ", file_name);
-    printf("Return code is %d\n", rc);
+    printf("Get file %d (after removed). ", file_name);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_NOT_FOUND);
 
     //add more files
-    /*rc = stlite.set(strlen(file_name_1), (const uint8_t *) file_name_1, data_buf_size, data_buf, 0);
-    printf("Set file %s to data %s. ", file_name_1, data_buf);
-    printf("Return code is %d\n", rc);
+    rc = stlite.set((const uint8_t *) file_name_1, strlen(file_name_1), data_buf, data_buf_size, 0);
+    printf("Set file \"%s\" to data %s. ", file_name_1, data_buf);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
-    rc = stlite.set(strlen(file_name_2), (const uint8_t *) file_name_2, data_buf_size, data_buf, 0);
-    printf("Set file %s to data %s. ", file_name_2, data_buf);
-    printf("Return code is %d\n", rc);
+    rc = stlite.set((const uint8_t *) file_name_2, strlen(file_name_2), data_buf, data_buf_size, 0);
+    printf("Set file \"%s\" to data %s. ", file_name_2, data_buf);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
-    rc = stlite.set(strlen(file_name_3), (const uint8_t *) file_name_3, data_buf_size, data_buf, 0);
-    printf("Set file %s to data %s. ", file_name_3, data_buf);
-    printf("Return code is %d\n", rc);*/
+    rc = stlite.set((const uint8_t *) file_name_3, strlen(file_name_3), data_buf, data_buf_size, 0);
+    printf("Set file \"%s\" to data %s. ", file_name_3, data_buf);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
     //iterate through the files
-    /*uint32_t handle = 0;
-    uint8_t cur_file_name[name_max_size] = {0};
-    rc = stlite.get_first_file(name_max_size, cur_file_name, name_size, handle);
-    printf("file %s retrieved. ", cur_file_name);
-    printf("Return code is %d\n", rc);
+    uint32_t handle = 0;
+    size_t actual_name_size = 0;
+    uint8_t get_buf[256];
+    rc = stlite.get_first_file(get_buf, sizeof(get_buf), actual_name_size, handle);
+    printf("file \"%s\" retrieved. ", get_buf);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
-    rc = stlite.get_next_file(name_max_size, cur_file_name, name_size, handle);
-    printf("file %s retrieved. ", cur_file_name);
-    printf("Return code is %d\n", rc);
+    rc =  stlite.get_next_file(get_buf, sizeof(get_buf), actual_name_size, handle);
+    printf("file \"%s\" retrieved. ", get_buf);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
-    rc = stlite.get_next_file(name_max_size, cur_file_name, name_size, handle);
-    printf("file %s retrieved. ", cur_file_name);
-    printf("Return code is %d\n", rc);*/
+    rc =  stlite.get_next_file(get_buf, sizeof(get_buf), actual_name_size, handle);
+    printf("file \"%s\" retrieved. ", get_buf);
+    printf("Return code is %d, return code expected is %d\n", rc, STORAGELITE_SUCCESS);
 
 #else
     printf("StorageLite is disabled for this board\n");
