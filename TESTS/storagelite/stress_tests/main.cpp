@@ -23,106 +23,127 @@ add many files (even max files), remove them, try to Get/Remove
 
 #include "StorageLite.h"
 #include "HeapBlockDevice.h"
+#include "FlashSimBlockDevice.h"
 #include "greentea-client/test_env.h"
 #include "unity/unity.h"
 #include "utest/utest.h"
 
 using namespace utest::v1;
 
-static const size_t data_buf_size        =  10;
-static const size_t default_name_size    =  16;
-static const uint8_t default_name         = 123;
-static const uint16_t max_files            = 5;
+static const size_t   data_buf_size      = 512;
+static const uint8_t  default_name       = 255;
+static const uint16_t max_files          = STORAGELITE_MAX_FILES;
+static const uint16_t header_size        = 32;
+static const uint16_t name_size          = 16;
+static const uint16_t byte_name_size     = 1;
 
 static const size_t bd_size = 8192;
 static const size_t bd_erase_size = 4096;
 static const size_t bd_prog_size = 1;
 static const size_t bd_read_size = 1;
 
-StorageLite stlite;
+StorageLite * stlite = NULL;
+HeapBlockDevice bd(bd_size, bd_read_size, bd_prog_size, bd_erase_size);
+FlashSimBlockDevice flash_bd(&bd);
 
+/*------------------utility functions------------------*/
 
-/**************help functions*****************/
+static void terminated()
+{
+    int status = STORAGELITE_SUCCESS;
+
+    stlite->reset();
+    status = stlite->deinit();
+    TEST_ASSERT_EQUAL_MESSAGE(STORAGELITE_SUCCESS, status, "StorageLite::deinit failed\n");
+    
+    delete stlite;
+}
 
 static void set_max_files()
 {
     int status = STORAGELITE_SUCCESS;
-    uint16_t i = 0;
+    uint8_t *file_name, name_count = 1;
+
+    file_name = &name_count;
     do 
     {
-        status = stlite.set(&default_name, i++, NULL, 0, 0);
+        status = stlite->set(file_name, byte_name_size, NULL, 0, 0);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+        name_count++;
     }
-    while(i < max_files);
+    while(name_count < max_files);
 }
 
 static void remove_max_files()
 {
     int status = STORAGELITE_SUCCESS;
-    uint16_t i = 0;
-    do
+    uint8_t *file_name, name_count = 1;
+
+    file_name = &name_count;
+    do 
     {
-        status = stlite.remove(&default_name, i++);
+        status = stlite->remove(file_name, byte_name_size);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+
+        name_count++;
     }
-    while(i < max_files);
+    while(name_count < max_files);
 }
+
+/*------------------tests------------------*/
 
 static void storagelite_stress_single_file_exceed_area()
 {
     int status = STORAGELITE_SUCCESS;
-    bool area_wasnt_swaped = false;
-    printf("in test\n");
+    uint8_t in_data_buff[data_buf_size] = {0};
+    size_t last_size = 0;
 
     do 
     {
-        status = stlite.set(&default_name, default_name_size, NULL, 0, 0);
+        last_size = stlite->free_size();
+        status = stlite->set(&default_name, sizeof(default_name), in_data_buff, data_buf_size, 0);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
     }
-    while(area_wasnt_swaped);
+    while(stlite->free_size() <= last_size);
 
     size_t actual_len_bytes = 0;
-    uint8_t data_buf[data_buf_size] = {0};
-    status = stlite.get(&default_name, default_name_size, data_buf, data_buf_size, actual_len_bytes);
-
+    uint8_t out_data_buf[data_buf_size] = {0};
+    status = stlite->get(&default_name, sizeof(default_name), out_data_buf, data_buf_size, actual_len_bytes);
     TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+
+    terminated();
 }
 
 static void storagelite_stress_multiple_files_exceed_area()
 {
     int status = STORAGELITE_SUCCESS;
-    uint16_t i = 0;
-    bool area_wasnt_swaped = false;
-    
+    uint8_t *file_name, name_count = 1;
+    uint8_t in_data_buff[data_buf_size] = {0};
+    file_name = &name_count;
+
     do 
     {
-        status = stlite.set( &default_name, i++, NULL, 0, 0);
+        status = stlite->set(file_name, sizeof(file_name), in_data_buff, data_buf_size, 0);
         TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
+        name_count++;
     }
-    while(area_wasnt_swaped);
+    while(stlite->free_size() > (data_buf_size + name_size + header_size));
 
-    int number_of_files_in_area = i;
+    status = stlite->set(file_name, sizeof(file_name), in_data_buff, data_buf_size, 0);
+    TEST_ASSERT_EQUAL(STORAGELITE_NO_SPACE_ON_BD, status);
 
-    size_t actual_len_bytes = 0;
-    uint8_t data_buf[data_buf_size] = {0};
-    i = 0;
-    do
-    {
-        status = stlite.get(&default_name, i++, data_buf, data_buf_size, actual_len_bytes);
-        TEST_ASSERT_EQUAL(STORAGELITE_SUCCESS, status);
-    }
-    while(i < number_of_files_in_area);
+    terminated();
 }
 
 static void storagelite_stress_max_files_allowed()
 {
     int status = STORAGELITE_SUCCESS;
-    uint16_t i = 0;
 
     set_max_files();
 
-    status = stlite.set(&default_name, i, NULL, 0, 0);
+    status = stlite->set(&default_name, sizeof(default_name), NULL, 0, 0);
     TEST_ASSERT_EQUAL(STORAGELITE_MAX_FILES_REACHED, status);
+    terminated();
 }
 
 static void storagelite_stress_max_files_set_remove_set()
@@ -132,12 +153,17 @@ static void storagelite_stress_max_files_set_remove_set()
     remove_max_files();
 
     set_max_files();
+    
+    terminated();
 }
 
 static void storagelite_stress_max_files_set_remove_get()
 {
     int status = STORAGELITE_SUCCESS;
-    uint16_t i = 0;
+
+    uint8_t *file_name, name_count = 1;
+
+    file_name = &name_count;
 
     set_max_files();
 
@@ -145,43 +171,42 @@ static void storagelite_stress_max_files_set_remove_get()
 
     size_t actual_len_bytes = 0;
     uint8_t data_buf[data_buf_size] = {0};
-    status = stlite.get(&default_name, i, data_buf, data_buf_size, actual_len_bytes);
+    status = stlite->get(file_name, byte_name_size, data_buf, data_buf_size, actual_len_bytes);
     TEST_ASSERT_EQUAL(STORAGELITE_NOT_FOUND, status);
+
+    terminated();
 }
 
-/*----------------setup------------------*/
+/*------------------handlers------------------*/
 
 utest::v1::status_t setup_init(const Case *const source, const size_t index_of_case, uint16_t max_bd_files)
 {
-    HeapBlockDevice bd(bd_size, bd_read_size, bd_prog_size, bd_erase_size);
-    //StorageLite stlite;
-    /*if (!stlite) {
-        printf("no stlite!\n");
-        return STATUS_ABORT;
-    }*/
-    printf("stlite addr = %p\n", stlite);
-    if (stlite.init(&bd, max_bd_files) != STORAGELITE_SUCCESS) 
-    {
-        printf("no init!\n");
-    }
-    printf("finished init\n");
+    int status = STORAGELITE_SUCCESS;
+
+    stlite = new StorageLite();
+
+    status = stlite->init(&flash_bd, max_bd_files);
+    TEST_ASSERT_EQUAL_MESSAGE(STORAGELITE_SUCCESS, status, "StorageLite::init failed\n");
+
     return STATUS_CONTINUE;
 }
 
 utest::v1::status_t setup_handler(const Case *const source, const size_t index_of_case)
 {
-    return setup_init(source, index_of_case, STORAGELITE_MAX_FILES);
+    int status = STORAGELITE_SUCCESS;
+
+    stlite = new StorageLite();
+
+    status = stlite->init(&flash_bd, max_files);
+    TEST_ASSERT_EQUAL_MESSAGE(STORAGELITE_SUCCESS, status, "StorageLite::init failed\n");
+
+    return STATUS_CONTINUE;
 }
 
 utest::v1::status_t tear_down_handler(const Case *const source, const size_t passed, const size_t failed, const failure_t reason)
 {
-    stlite.deinit();
+    stlite->deinit();
     return STATUS_CONTINUE;
-}
-
-utest::v1::status_t max_files_setup_handler(const Case *const source, const size_t index_of_case)
-{
-    return setup_init(source, index_of_case, max_files);
 }
 
 utest::v1::status_t failure_handler(const Case *const source, const failure_t reason)
@@ -192,15 +217,15 @@ utest::v1::status_t failure_handler(const Case *const source, const failure_t re
 
 Case cases[] = {
     Case("storagelite_stress_single_file_exceed_area", 
-         setup_handler, storagelite_stress_single_file_exceed_area, tear_down_handler, failure_handler),
+         setup_handler, storagelite_stress_single_file_exceed_area),
     Case("storagelite_stress_multiple_files_exceed_area", 
-         setup_handler, storagelite_stress_multiple_files_exceed_area, tear_down_handler, failure_handler),
+         setup_handler, storagelite_stress_multiple_files_exceed_area),
     Case("storagelite_stress_max_files_allowed", 
-         max_files_setup_handler, storagelite_stress_max_files_allowed, tear_down_handler, failure_handler),
+         setup_handler, storagelite_stress_max_files_allowed),
     Case("storagelite_stress_max_files_set_remove_set", 
-         max_files_setup_handler, storagelite_stress_max_files_set_remove_set, tear_down_handler, failure_handler),
+         setup_handler, storagelite_stress_max_files_set_remove_set),
     Case("storagelite_stress_max_files_set_remove_get", 
-         max_files_setup_handler, storagelite_stress_max_files_set_remove_get, tear_down_handler, failure_handler),
+         setup_handler, storagelite_stress_max_files_set_remove_get),
 };
 
 utest::v1::status_t greentea_test_setup(const size_t number_of_cases)
