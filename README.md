@@ -13,5 +13,7 @@ Show the API implemantation and usage.
 StorageLite testset for the API.
 * Stress tests
 StorageLite stress testset for the API.
+* FileSystem tests
+StorageLite FS testset for the API.
 
 Further Details and instructions are in each folder.
