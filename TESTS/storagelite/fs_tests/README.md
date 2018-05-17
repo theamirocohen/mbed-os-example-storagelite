@@ -6,7 +6,7 @@ StorageLite FileSystem tests for Mbed OS
 
 This is the general tests of StorageLiteFS APIs.
 
-The application invokes the StorageLiteFS APIs and prints the results after each such invocation. 
+The application invokes the POSIX APIs for opening, reading, writing and closing files, the POSIX APIs is using the StorageLiteFS APIs to complete the tasks and prints the results after each such invocation. 
 
 ## Required hardware
 These tests are performed on a flash memory adapter which simulate an external memory, we'll use K64F:

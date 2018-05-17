@@ -13,14 +13,6 @@
  * limitations under the License.
  */
  
-/*
-create single file, set it multiple times to exceed area size
-create multiple files to exceed area size
-reach max of files allowed
-Set Max Files, Remove all files – then check you can still add MAX files
-add many files (even max files), remove them, try to Get/Remove
-*/
-
 #include "StorageLite.h"
 #include "HeapBlockDevice.h"
 #include "FlashSimBlockDevice.h"
@@ -92,6 +84,10 @@ static void remove_max_files()
 
 /*------------------tests------------------*/
 
+/* Create single file, set it multiple times to exceed area size
+ * when area is exceeded the file will be automaticly moved to the
+ * new area, use get() to see the file is valid
+ */
 static void storagelite_stress_single_file_exceed_area()
 {
     int status = STORAGELITE_SUCCESS;
@@ -114,6 +110,9 @@ static void storagelite_stress_single_file_exceed_area()
     terminated();
 }
 
+/* Create multiple files to exceed area size, when area is exceeded 
+ * a no space on bd error will appear
+*/
 static void storagelite_stress_multiple_files_exceed_area()
 {
     int status = STORAGELITE_SUCCESS;
@@ -135,6 +134,8 @@ static void storagelite_stress_multiple_files_exceed_area()
     terminated();
 }
 
+/* Exceed max files allowed for storage
+*/
 static void storagelite_stress_max_files_allowed()
 {
     int status = STORAGELITE_SUCCESS;
@@ -146,6 +147,8 @@ static void storagelite_stress_max_files_allowed()
     terminated();
 }
 
+/* Set max files allowed, Remove all files – then check you can still add max files allowed
+*/
 static void storagelite_stress_max_files_set_remove_set()
 {
     set_max_files();
@@ -157,6 +160,8 @@ static void storagelite_stress_max_files_set_remove_set()
     terminated();
 }
 
+/* Add max files allowed files, remove them, try to get a removed file
+*/
 static void storagelite_stress_max_files_set_remove_get()
 {
     int status = STORAGELITE_SUCCESS;
